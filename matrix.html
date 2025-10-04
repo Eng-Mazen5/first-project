@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matrix Rain - Welcome to Hell</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      color: #00ff00;
+      font-family: monospace;
+    }
+    canvas {
+      display: block;
+    }
+    .center-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #00ff00;
+      font-size: 3em;
+      text-shadow: 0 0 20px #00ff00;
+      letter-spacing: 2px;
+      text-align: center;
+      animation: fadeInOut 4s ease-in-out infinite;
+      user-select: none;
+    }
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+    .hint {
+      position: absolute;
+      bottom: 10px;
+      right: 20px;
+      color: #00ff00;
+      font-size: 0.9em;
+      opacity: 0.6;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="center-text" id="center-text">Welcome to Hell</div>
+  <div class="hint">[1–5] Color | [↑↓] Speed | Click → Play Music</div>
+
+  <audio id="bg-music" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_424b5a2d1a.mp3?filename=dark-sci-fi-ambient-110965.mp3" type="audio/mp3">
+  </audio>
+
+  <script>
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d");
+    const textElement = document.getElementById("center-text");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const fontSize = Math.max(12, Math.floor(canvas.width / 80));
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops = Array(columns).fill(1);
+
+    let speedFactor = 3.0;
+    let codeColor = "#00ff00"; // اللون الافتراضي (أخضر)
+
+    function draw() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = codeColor;
+      ctx.font = fontSize + "px monospace";
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters.charAt(Math.floor(Math.random() * letters.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975)
+          drops[i] = 0;
+        drops[i] += speedFactor;
+      }
+    }
+
+    setInterval(draw, 50);
+
+    // 🎵 الموسيقى تشتغل بعد أول كليك
+    document.body.addEventListener("click", () => {
+      document.getElementById("bg-music").play();
+    });
+
+    // 🎨 التحكم في الألوان بالكيبورد
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "1") setColor("#00ff00");
+      if (e.key === "2") setColor("#ff0000");
+      if (e.key === "3") setColor("#00ffff");
+      if (e.key === "4") setColor("#a000ff");
+      if (e.key === "5") setColor("#ffffff");
+
+      // 🔼 و 🔽 للتحكم في السرعة
+      if (e.key === "ArrowUp") speedFactor += 0.5;
+      if (e.key === "ArrowDown") speedFactor = Math.max(0.5, speedFactor - 0.5);
+    });
+
+    function setColor(color) {
+      codeColor = color;
+      textElement.style.color = color;
+      textElement.style.textShadow = `0 0 20px ${color}`;
+      document.querySelector(".hint").style.color = color;
+    }
+
+    // إعادة ضبط الحجم لو المستخدم كبر أو صغّر الصفحة
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
