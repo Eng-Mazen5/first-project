@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Anonymous — Welcome to Hell (Final)</title>
+<style>
+  :root { --ui:#00ff55; --bg:#000; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);font-family:ui-monospace, monospace;overflow:hidden}
+  canvas{display:block;position:fixed;inset:0;z-index:0}
+
+  /* UI */
+  .ui {
+    position:fixed; right:16px; top:16px; z-index:120;
+    color:var(--ui); font-size:13px; opacity:0.95;
+    background: rgba(0,0,0,0.28); padding:10px 12px; border-radius:8px;
+    border:1px solid rgba(255,255,255,0.04);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ui .row { display:flex; gap:8px; align-items:center; }
+  .ui button {
+    padding:6px 8px; border-radius:6px; border:none; cursor:pointer;
+    background: rgba(255,255,255,0.06); color: inherit;
+  }
+
+  .hint {
+    position:fixed; left:16px; bottom:16px; z-index:120;
+    color:rgba(255,255,255,0.7); font-size:13px;
+    background: rgba(0,0,0,0.22); padding:8px 10px; border-radius:8px;
+  }
+
+  /* center text + glitch */
+  .center {
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:115; pointer-events:none; text-align:center;
+  }
+  .center .line {
+    color:var(--ui);
+    font-size:clamp(20px,6vw,72px);
+    letter-spacing:2px;
+    text-shadow: 0 0 26px rgba(0,255,120,0.12), 0 0 6px rgba(0,255,120,0.25);
+    user-select:none;
+    display:block;
+    mix-blend-mode:screen;
+  }
+  .sub {
+    margin-top:12px;
+    font-size:clamp(12px,1.6vw,18px);
+    color: rgba(180,255,200,0.9);
+    opacity:0.95;
+    text-shadow: 0 0 8px rgba(0,255,120,0.06);
+  }
+
+  /* glitch animation */
+  .glitch { position:relative; display:inline-block; }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute; left:0; top:0; width:100%;
+    clip: rect(0, 9999px, 0, 0);
+    pointer-events:none;
+  }
+  .glitch.glitching::before {
+    animation: glice-1 1.8s infinite linear;
+    color: rgba(0,255,120,0.85);
+    transform: translate(-2px,-1px);
+    mix-blend-mode: screen;
+  }
+  .glitch.glitching::after {
+    animation: glice-2 2.6s infinite linear;
+    color: rgba(50,255,150,0.6);
+    transform: translate(2px,1px);
+    mix-blend-mode: screen;
+  }
+  @keyframes glice-1 {
+    0%{clip:rect(0,9999px,0,0)}
+    6%{clip:rect(10px,9999px,60px,0) transform:translate(-6px,-2px)}
+    12%{clip:rect(0,9999px,0,0)}
+    35%{clip:rect(20px,9999px,80px,0)}
+    100%{clip:rect(0,9999px,0,0)}
+  }
+  @keyframes glice-2 {
+    0%{clip:rect(0,9999px,0,0)}
+    8%{clip:rect(40px,9999px,120px,0)}
+    20%{clip:rect(0,9999px,0,0)}
+    48%{clip:rect(10px,9999px,60px,0)}
+    100%{clip:rect(0,9999px,0,0)}
+  }
+
+  /* Flag overlays */
+  .flag-overlay {
+    position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; opacity:0; transition: opacity 260ms ease;
+  }
+  .flag-overlay.visible { opacity:1; pointer-events:auto; }
+
+  .flag-box {
+    width: min(60vmin, 520px); aspect-ratio: 3/2; border-radius:8px; overflow:hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    transform: scale(0.98); transition: transform 260ms cubic-bezier(.2,.9,.2,1);
+  }
+  .flag-overlay.visible .flag-box { transform: scale(1); }
+
+  .pal .stripes { width:100%; height:100%; background: linear-gradient(#000 0 33.333%, #fff 33.333% 66.666%, #007a3d 66.666% 100%); position:relative; }
+  .pal .triangle { position:absolute; left:0; top:0; bottom:0; width:45%; clip-path: polygon(0 50%, 45% 0, 45% 100%); background:#ce1126; }
+
+  .egy .stripes { width:100%; height:100%; background: linear-gradient(#ce1126 0 33.333%, #fff 33.333% 66.666%, #000 66.666% 100%); position:relative; }
+  .egy .egy-emblem { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:48px; color:#b38a00; text-shadow:0 2px 6px rgba(0,0,0,0.6); }
+
+  @media (max-width:500px){
+    .ui{ right:8px; top:8px; font-size:12px; padding:8px }
+    .hint{ left:8px; bottom:8px }
+    .center .line{ font-size:clamp(18px,9vw,48px) }
+  }
+</style>
+</head>
+<body>
+
+<!-- single canvas for matrix -->
+<canvas id="matrix"></canvas>
+
+<!-- center text -->
+<div class="center">
+  <div id="mainLine" class="line glitch" data-text="We are Anonymous. We are Legion.">We are Anonymous. We are Legion.</div>
+  <div id="quoteLine" class="sub">Expect us.</div>
+</div>
+
+<!-- UI -->
+<div class="ui" id="uiBox">
+  <div><strong>Anonymous Mode</strong></div>
+  <div id="status">Music: Paused · Glitch: ON · Speed: 3.0</div>
+  <div class="row">
+    <button id="btnFlagP">Flag P</button>
+    <button id="btnFlagE">Flag E</button>
+    <button id="btnNext">Next Quote</button>
+  </div>
+  <div style="font-size:12px;opacity:0.9">Keys: [1–5] Color · [↑/↓] Speed · M=Music · G=Glitch · Space/Q=Next · P=Pal · E=Egypt</div>
+</div>
+
+<div class="hint">Click once to allow audio • Press M to toggle music</div>
+
+<!-- Flag overlays -->
+<div id="flagPal" class="flag-overlay" aria-hidden="true" title="Palestinian Flag">
+  <div class="flag-box pal" role="img" aria-label="Palestinian flag">
+    <div class="stripes"></div>
+    <div class="triangle"></div>
+  </div>
+</div>
+
+<div id="flagEgy" class="flag-overlay" aria-hidden="true" title="Egypt Flag">
+  <div class="flag-box egy" role="img" aria-label="Egypt flag">
+    <div class="stripes"></div>
+    <div class="egy-emblem">𓂀</div>
+  </div>
+</div>
+
+<!-- Audio (not autoplay to avoid browser blocks) -->
+<audio id="bgm" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_424b5a2d1a.mp3?filename=dark-sci-fi-ambient-110965.mp3" type="audio/mp3">
+</audio>
+
+<script>
+(() => {
+  // Canvas + resize
+  const canvas = document.getElementById('matrix');
+  const ctx = canvas.getContext('2d');
+  function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; initCols(); }
+  addEventListener('resize', resize);
+  resize();
+
+  // letters (Arabic + English + numbers)
+  const letters = ("ابتثجحخدذرزسشصضطظعغفقكلمنهويىء" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%&*?").split('');
+
+  // columns
+  let fontSize = Math.max(10, Math.floor(innerWidth / 90));
+  let cols = Math.floor(innerWidth / fontSize);
+  let drops = [];
+  function initCols(){
+    fontSize = Math.max(9, Math.floor(innerWidth / 90));
+    cols = Math.max(20, Math.floor(innerWidth / fontSize));
+    drops = new Array(cols).fill().map(() => ({ y: Math.random()*-1000, speed: 1 + Math.random()*2, len: 8 + Math.floor(Math.random()*24) }));
+  }
+  initCols();
+
+  // state
+  let speedFactor = 3.0;
+  let codeColor = '#00ff55';
+  const presets = ['#00ff55','#ff3b3b','#00e5ff','#b100ff','#ffffff'];
+  let glitchOn = true;
+  let musicPlaying = false;
+  const bgm = document.getElementById('bgm');
+
+  // UI elements
+  const mainLine = document.getElementById('mainLine');
+  const quoteLine = document.getElementById('quoteLine');
+  const status = document.getElementById('status');
+
+  function updateStatus(){ status.textContent = `Music: ${musicPlaying?'Playing':'Paused'} · Glitch: ${glitchOn?'ON':'OFF'} · Speed: ${speedFactor.toFixed(1)}`; }
+
+  // quotes list and cycle
+  const quotes = [
+    "We are Anonymous. We are Legion.",
+    "Welcome to Hell",
+    "We do not forgive. We do not forget.",
+    "Expect us.",
+    "System Breached.",
+    "Information is power."
+  ];
+  let qIndex = 0;
+
+  function setMainText(t){
+    mainLine.setAttribute('data-text', t);
+    if (glitchOn) {
+      mainLine.classList.add('glitching');
+      setTimeout(()=> mainLine.classList.remove('glitching'), 1100);
+    }
+    mainLine.textContent = t;
+    quoteLine.textContent = randomSubtitle();
+  }
+
+  function randomSubtitle(){
+    const subs = [
+      "Hack the planet.",
+      "Access granted.",
+      "Control is an illusion.",
+      "Everything is connected.",
+      "We are legion."
+    ];
+    return subs[Math.floor(Math.random()*subs.length)];
+  }
+
+  function showNextQuote(){
+    qIndex = (qIndex + 1) % quotes.length;
+    setMainText(quotes[qIndex]);
+  }
+
+  // special init: show first then after 4s show Welcome to Hell, then rotate every 8s
+  function initQuoteCycle(){
+    qIndex = 0;
+    setMainText(quotes[0]); // Anonymous
+    setTimeout(()=> {
+      const idx = quotes.indexOf("Welcome to Hell");
+      if(idx !== -1){ qIndex = idx; setMainText(quotes[idx]); }
+    }, 4000);
+    setInterval(()=> { showNextQuote(); }, 8000);
+  }
+  initQuoteCycle();
+
+  // draw loop
+  function rgbaFromHex(hex, a=1){
+    const c = hex.replace('#','');
+    const r = parseInt(c.substring(0,2),16);
+    const g = parseInt(c.substring(2,4),16);
+    const b = parseInt(c.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function loop(){
+    const w = canvas.width, h = canvas.height;
+    // trail for cool effect
+    ctx.fillStyle = `rgba(0,0,0,${0.06})`;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.font = `${fontSize}px monospace`;
+    ctx.textBaseline = 'top';
+
+    for(let i=0;i<cols;i++){
+      const d = drops[i];
+      const x = i * fontSize;
+      const lead = Math.random() > 0.98;
+      const len = d.len;
+      for(let t=0; t<Math.min(6,len); t++){
+        const ch = letters[Math.floor(Math.random()*letters.length)];
+        const y = Math.floor(d.y - t * fontSize * 0.9);
+        const alpha = lead ? Math.max(0.2, 0.95 - t*0.12) : Math.max(0.08, 0.55 - t*0.08);
+        ctx.fillStyle = rgbaFromHex(codeColor, alpha);
+        ctx.fillText(ch, x, y);
+      }
+      d.y += d.speed * speedFactor * (0.7 + Math.sin(d.y*0.01)*0.2);
+      if(d.y - d.len*fontSize > h && Math.random() > 0.96){
+        d.y = -Math.random()*300;
+        d.speed = 0.6 + Math.random()*2.2;
+      }
+    }
+
+    // glitch slice occasional (subtle)
+    if(glitchOn && Math.random() > 0.997){
+      const sliceH = 4 + Math.floor(Math.random()*12);
+      const y0 = Math.floor(Math.random()*h);
+      const sx = (Math.random()-0.5)*12;
+      ctx.drawImage(canvas, 0, y0, w, sliceH, sx, y0, w, sliceH);
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // flags
+  const flagPal = document.getElementById('flagPal');
+  const flagEgy = document.getElementById('flagEgy');
+  const flagMap = { pal: flagPal, egy: flagEgy };
+  const activeTimers = {};
+
+  function showFlag(which, ms = 7000){
+    const el = flagMap[which];
+    if(!el) return;
+    // clear existing
+    if(activeTimers[which]) { clearTimeout(activeTimers[which]); activeTimers[which]=null; }
+    el.classList.add('visible');
+    el.setAttribute('aria-hidden','false');
+    // auto hide
+    activeTimers[which] = setTimeout(()=> {
+      el.classList.remove('visible');
+      el.setAttribute('aria-hidden','true');
+      activeTimers[which]=null;
+    }, ms);
+  }
+
+  // click to hide overlays
+  [flagPal, flagEgy].forEach(f => {
+    f.addEventListener('click', ()=> { f.classList.remove('visible'); f.setAttribute('aria-hidden','true'); });
+  });
+
+  // UI buttons
+  document.getElementById('btnFlagP').addEventListener('click', ()=> showFlag('pal',7000));
+  document.getElementById('btnFlagE').addEventListener('click', ()=> showFlag('egy',7000));
+  document.getElementById('btnNext').addEventListener('click', ()=> { showNextQuote(); });
+
+  // keyboard controls
+  document.addEventListener('keydown', (e) => {
+    const k = e.key;
+    // colors 1-5
+    if(['1','2','3','4','5'].includes(k)){
+      const c = presets[parseInt(k)-1];
+      setColor(c);
+    }
+    // music toggle
+    if(k === 'm' || k === 'M'){
+      if(bgm.paused){ bgm.play().catch(()=>{}); musicPlaying = true; }
+      else { bgm.pause(); musicPlaying = false; }
+      updateStatus();
+    }
+    // glitch toggle
+    if(k === 'g' || k === 'G'){ glitchOn = !glitchOn; updateStatus(); }
+    // next quote
+    if(k === ' ' || k === 'q' || k === 'Q'){ showNextQuote(); if(glitchOn){ mainLine.classList.add('glitching'); setTimeout(()=> mainLine.classList.remove('glitching'), 900); } }
+    // speed
+    if(k === 'ArrowUp'){ speedFactor = Math.min(10, speedFactor + 0.5); updateStatus(); }
+    if(k === 'ArrowDown'){ speedFactor = Math.max(0.5, speedFactor - 0.5); updateStatus(); }
+    // flags
+    if(k === 'p' || k === 'P'){ showFlag('pal',7000); } // Palestine 7s
+    if(k === 'e' || k === 'E'){ showFlag('egy',7000); } // Egypt 7s
+    // Enter can restart cycle (optional)
+    if(k === 'Enter'){ initQuoteCycle(); }
+  });
+
+  // setColor
+  function setColor(hex){
+    codeColor = hex;
+    document.documentElement.style.setProperty('--ui', hex);
+    mainLine.style.color = hex;
+    mainLine.style.textShadow = `0 0 26px ${hex}, 0 0 6px ${hex}`;
+    quoteLine.style.color = hex;
+  }
+
+  // click-to-allow audio
+  document.body.addEventListener('click', ()=> {
+    bgm.play().then(()=>{ musicPlaying = true; updateStatus(); }).catch(()=>{});
+  }, {once:true});
+
+  // initial status
+  updateStatus();
+
+})();
+</script>
+</body>
+</html>
